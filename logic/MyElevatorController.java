@@ -7,6 +7,8 @@ public class MyElevatorController implements ElevatorController {
     // Private member data
     private Game game;
 
+    private double time = 0;
+
     // Students should implement this function to return their name
     public String getStudentName() {
         return "Dhruv";   // <-- TODO: Replace with your name
@@ -51,5 +53,6 @@ public class MyElevatorController implements ElevatorController {
             return;
         }
         // TODO
+        time += deltaTime;
     }
 }
