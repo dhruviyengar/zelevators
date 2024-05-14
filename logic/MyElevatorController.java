@@ -27,7 +27,9 @@ public class MyElevatorController implements ElevatorController {
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         System.out.println("onElevatorRequestChanged(" + floorIdx + ", " + dir + ", " + reqEnable + ")");
 
-        // TODO
+        if ((game.isElevatorIdle(0) == true) || (reqEnable && game.getElevatorTravelDirection(0) == dir)) {
+            gotoFloor(0, floorIdx);
+        }
 
     }
 
@@ -36,7 +38,7 @@ public class MyElevatorController implements ElevatorController {
     public void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
         System.out.println("onFloorRequesteChanged(" + elevatorIdx + ", " + floorIdx + ", " + reqEnable + ")");
 
-        // TODO
+        gotoFloor(elevatorIdx, floorIdx);
 
     }
 
