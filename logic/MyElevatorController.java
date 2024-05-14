@@ -1,5 +1,13 @@
 package logic;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+
 import game.ElevatorController;
 import game.Game;
 
@@ -24,29 +32,33 @@ public class MyElevatorController implements ElevatorController {
 
     // Event: "outside-the-elevator" request, requesting an elevator.
     //  The event will be triggered with the request is created/enabled & when it is cleared (reqEnable indicates which).
+
+    Map<Integer, Direction> requests = new HashMap<Integer, Direction>();
+    List<Integer> targets = new ArrayList<>();
+
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         System.out.println("onElevatorRequestChanged(" + floorIdx + ", " + dir + ", " + reqEnable + ")");
-
-        if ((game.isElevatorIdle(0) == true) || (reqEnable && game.getElevatorTravelDirection(0) == dir)) {
-            gotoFloor(0, floorIdx);
+        if (reqEnable) {
+            requests.put(floorIdx, dir);
+        } else if (!reqEnable) {
+            requests.put(floorIdx, null);
         }
-
     }
 
     // Event: "inside-the-elevator" request, requesting to go to a floor.
     //  The event will be triggered with the request is created/enabled & when it is cleared (reqEnable indicates which).
     public void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
-        System.out.println("onFloorRequesteChanged(" + elevatorIdx + ", " + floorIdx + ", " + reqEnable + ")");
+        
 
-        gotoFloor(elevatorIdx, floorIdx);
+        
 
     }
 
     // Event: Elevator has arrived at the floor & doors are open.
     public void onElevatorArrivedAtFloor(int elevatorIdx, int floorIdx, Direction travelDirection) {
-        System.out.println("onElevatorArrivedAtFloor(" + elevatorIdx + ", " + floorIdx + ", " + travelDirection + ")");
+        targets.remove(floorIdx);
 
-        // TODO
+        
     }
 
     // Event: Called each frame of the simulation (i.e. called continuously)
@@ -54,7 +66,11 @@ public class MyElevatorController implements ElevatorController {
         if (game == null) {
             return;
         }
-        // TODO
         time += deltaTime;
+        for (int i = 0; i < game.getFloorCount(); i++) {
+            if (!requests.containsKey(i)) {
+                requests.put(i, null);
+            }
+        }
     }
 }
