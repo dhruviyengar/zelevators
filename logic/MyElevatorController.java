@@ -1,32 +1,12 @@
 package logic;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import game.ElevatorController;
 import game.Game;
 
 public class MyElevatorController implements ElevatorController {
-
-    class Request {
-
-        private final long timestamp;
-        private final Direction dir;
-
-        public Request(long timestamp, Direction dir) {
-            this.timestamp = timestamp;
-            this.dir = dir;
-        }
-
-        public long getTimeStamp() {
-            return this.timestamp;
-        }
-
-        public Direction getDir() {
-            return this.dir;
-        }
-
-    }
 
     // Private member data
     private Game game;
@@ -51,35 +31,76 @@ public class MyElevatorController implements ElevatorController {
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
 
-    Map<Integer, Request> requests = new HashMap<>();
+    List<Request> currentRequests = new ArrayList<>();
 
     boolean droppingOff0 = false;
     boolean droppingOff1 = false;
 
-    private int goToClosest(int elevatorIdx, boolean sortByTime) {
-        int closestFloor = -1;
+    class Request {
+
+        private final int floor;
+        private final long timestamp;
+        private final Direction dir;
+
+        public Request(int floor, long timestamp, Direction dir) {
+            this.floor = floor;
+            this.timestamp = timestamp;
+            this.dir = dir;
+        }
+
+        public int getFloor() {
+            return this.floor;
+        }
+
+        public long getTimeStamp() {
+            return this.timestamp;
+        }
+
+        public Direction getDir() {
+            return this.dir;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Request) {
+                Request other = (Request) obj;
+                return other.getDir() == getDir() && other.getTimeStamp() == getTimeStamp()
+                        && other.getFloor() == getFloor();
+            }
+            return false;
+        }
+
+    }
+
+    private void fulfillRequest(int elevatorIdx, Request request) {
+        if ((int) game.getElevatorFloor(elevatorIdx) != request.getFloor()) gotoFloor(elevatorIdx, request.getFloor());
+        currentRequests.remove(request);
+    }
+
+    private Request goToClosest(int elevatorIdx, boolean sortByTime) {
+        Request closest = null;
         int floorIdx = (int) game.getElevatorFloor(elevatorIdx);
-        for (Integer integer : requests.keySet()) { // finding closest floor
-            if (closestFloor == -1) { //sorting by time
-                closestFloor = integer;
+        for (Request request : currentRequests) { // finding closest floor
+            if (closest == null) { // sorting by time
+                closest = request;
             } else {
-                boolean sort = requests.get(integer).getTimeStamp() < requests.get(closestFloor).getTimeStamp() ? sortByTime : Math.abs(closestFloor - floorIdx) > Math.abs(integer - floorIdx);
+                boolean sort = request.getTimeStamp() < closest.getTimeStamp()
+                        ? sortByTime
+                        : Math.abs(closest.getFloor() - floorIdx) > Math.abs(request.getFloor() - floorIdx);
                 if (sort) {
-                    closestFloor = integer;
+                    closest = request;
                 }
             }
         }
-        if (closestFloor != -1) {
-            if (closestFloor != floorIdx)
-                gotoFloor(elevatorIdx, closestFloor);
-            requests.remove(closestFloor);
+        if (closest != null) {
+            fulfillRequest(elevatorIdx, closest);
         }
-        return closestFloor;
+        return closest;
     }
 
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         if (reqEnable)
-            requests.put(floorIdx, new Request(System.currentTimeMillis(), dir)); // adding direction request
+            currentRequests.add(new Request(floorIdx, System.currentTimeMillis(), dir)); // adding direction request
     }
 
     // Event: "inside-the-elevator" request, requesting to go to a floor.
@@ -87,14 +108,14 @@ public class MyElevatorController implements ElevatorController {
     // cleared (reqEnable indicates which).
     public void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
         if (reqEnable) {
-            gotoFloor(elevatorIdx, floorIdx); //going to drop off 
+            gotoFloor(elevatorIdx, floorIdx); // going to drop off
             if (elevatorIdx == 0) {
                 System.out.println("0 is dropping off " + floorIdx + " " + time);
                 droppingOff0 = true;
             } else {
                 System.out.println("1 is dropping off " + floorIdx + " " + time);
                 droppingOff1 = true;
-            } //storing that we're dropping off so onArrived knows to queue another movement
+            } // storing that we're dropping off so onArrived knows to queue another movement
         }
     }
 
@@ -103,16 +124,18 @@ public class MyElevatorController implements ElevatorController {
         if (elevatorIdx == 0) {
             if (droppingOff0) {
                 droppingOff0 = false;
-                System.out.println("0 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
-                        + time);
+                System.out
+                        .println("0 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
+                                + time);
             }
         } else {
             if (droppingOff1) {
                 droppingOff1 = false;
-                System.out.println("1 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
-                        + time);
+                System.out
+                        .println("1 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
+                                + time);
             }
-        } //going to the next pickup
+        } // going to the next pickup
     }
 
     // Event: Called each frame of the simulation (i.e. called continuously)
@@ -122,12 +145,12 @@ public class MyElevatorController implements ElevatorController {
             return;
         }
         time += deltaTime;
-        if (requests.size() > 0 && game.isElevatorIdle(0)) {
+        if (currentRequests.size() > 0 && game.isElevatorIdle(0)) {
             System.out.println("moving to " + goToClosest(0, false) + " " + time);
         }
 
-        if (requests.size() > 0 && game.isElevatorIdle(1)) {
+        if (currentRequests.size() > 0 && game.isElevatorIdle(1)) {
             System.out.println("moving to " + goToClosest(1, false) + " " + time);
-        } //for intiialization
+        } // for intiialization
     }
 }
