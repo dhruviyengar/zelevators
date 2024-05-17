@@ -1,5 +1,6 @@
 package logic;
 
+import java.time.format.SignStyle;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,15 +27,6 @@ public class MyElevatorController implements ElevatorController {
     public void onGameStarted(Game game) {
         this.game = game;
     }
-
-    // Event: "outside-the-elevator" request, requesting an elevator.
-    // The event will be triggered with the request is created/enabled & when it is
-    // cleared (reqEnable indicates which).
-
-    List<Request> currentRequests = new ArrayList<>();
-
-    boolean droppingOff0 = false;
-    boolean droppingOff1 = false;
 
     class Request {
 
@@ -72,35 +64,99 @@ public class MyElevatorController implements ElevatorController {
 
     }
 
-    private void fulfillRequest(int elevatorIdx, Request request) {
-        if ((int) game.getElevatorFloor(elevatorIdx) != request.getFloor()) gotoFloor(elevatorIdx, request.getFloor());
-        currentRequests.remove(request);
+    class AutonomousElevator {
+
+        private final int selfIdx;
+        private final int minFloor;
+        private final int maxFloor;
+
+        private final List<Request> requests = new ArrayList<>();
+
+        private final List<Integer> floorQueue = new ArrayList<>();
+
+        private boolean droppingOff = false;
+
+        public AutonomousElevator(int selfIdx, int minFloor, int maxFloor) {
+            this.selfIdx = selfIdx;
+            this.minFloor = minFloor;
+            this.maxFloor = maxFloor;
+        }
+
+        private int getElevatorFloor() {
+            return (int) game.getElevatorFloor(selfIdx);
+        }
+
+        private void fulfillRequest(Request request) {
+            if (getElevatorFloor() != request.getFloor())
+                gotoFloor(selfIdx, request.getFloor());
+            requests.remove(request);
+        }
+
+        private void evaluatePosition() {
+            Request closest = null;
+            for (Request request : requests) {
+                if (closest == null) {
+                    closest = request;
+                } else {
+                    if (Math.abs(closest.getFloor() - getElevatorFloor()) > Math
+                            .abs(request.getFloor() - getElevatorFloor())) {
+                        closest = request;
+                    }
+                }
+            }
+            if (closest != null)
+                fulfillRequest(closest);
+        }
+
+        public void onElevatorCall(int floorIdx, Direction dir) {
+            requests.add(new Request(floorIdx, System.currentTimeMillis(), dir));
+        }
+
+        public void onFloorSelect(int floorIdx) {
+            gotoFloor(selfIdx, floorIdx);
+            droppingOff = true;
+        }
+
+        public void onElevatorArrive() {
+            if (droppingOff) {
+                droppingOff = false;
+                evaluatePosition();
+            }
+        }
+
+        public void onIdle() {
+            evaluatePosition();
+        }
+
+        public void initalize() {
+            evaluatePosition();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof AutonomousElevator) {
+                AutonomousElevator other = (AutonomousElevator) obj;
+                return selfIdx == other.selfIdx;
+            }
+            return false;
+        }
+
     }
 
-    private Request goToClosest(int elevatorIdx, boolean sortByTime) {
-        Request closest = null;
-        int floorIdx = (int) game.getElevatorFloor(elevatorIdx);
-        for (Request request : currentRequests) { // finding closest floor
-            if (closest == null) { // sorting by time
-                closest = request;
-            } else {
-                boolean sort = request.getTimeStamp() < closest.getTimeStamp()
-                        ? sortByTime
-                        : Math.abs(closest.getFloor() - floorIdx) > Math.abs(request.getFloor() - floorIdx);
-                if (sort) {
-                    closest = request;
+    List<AutonomousElevator> elevators = new ArrayList<>();
+
+    // Event: "outside-the-elevator" request, requesting an elevator.
+    // The event will be triggered with the request is created/enabled & when it is
+    // cleared (reqEnable indicates which).
+    public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
+        if (reqEnable) {
+            for (AutonomousElevator elevator : elevators) {
+                if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) {
+                    elevator.onElevatorCall(floorIdx, dir);
+                    return;
                 }
             }
         }
-        if (closest != null) {
-            fulfillRequest(elevatorIdx, closest);
-        }
-        return closest;
-    }
-
-    public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
-        if (reqEnable)
-            currentRequests.add(new Request(floorIdx, System.currentTimeMillis(), dir)); // adding direction request
     }
 
     // Event: "inside-the-elevator" request, requesting to go to a floor.
@@ -108,34 +164,23 @@ public class MyElevatorController implements ElevatorController {
     // cleared (reqEnable indicates which).
     public void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
         if (reqEnable) {
-            gotoFloor(elevatorIdx, floorIdx); // going to drop off
-            if (elevatorIdx == 0) {
-                System.out.println("0 is dropping off " + floorIdx + " " + time);
-                droppingOff0 = true;
-            } else {
-                System.out.println("1 is dropping off " + floorIdx + " " + time);
-                droppingOff1 = true;
-            } // storing that we're dropping off so onArrived knows to queue another movement
+            for (AutonomousElevator elevator : elevators) {
+                if (elevatorIdx == elevator.selfIdx) {
+                    elevator.onFloorSelect(floorIdx);
+                    return;
+                }
+            }
         }
     }
 
     // Event: Elevator has arrived at the floor & doors are open.
     public void onElevatorArrivedAtFloor(int elevatorIdx, int floorIdx, Direction travelDirection) {
-        if (elevatorIdx == 0) {
-            if (droppingOff0) {
-                droppingOff0 = false;
-                System.out
-                        .println("0 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
-                                + time);
+        for (AutonomousElevator elevator : elevators) {
+            if (elevatorIdx == elevator.selfIdx) {
+                elevator.onElevatorArrive();
+                return;
             }
-        } else {
-            if (droppingOff1) {
-                droppingOff1 = false;
-                System.out
-                        .println("1 dropped off " + floorIdx + ", now going to " + goToClosest(elevatorIdx, false) + " "
-                                + time);
-            }
-        } // going to the next pickup
+        }
     }
 
     // Event: Called each frame of the simulation (i.e. called continuously)
@@ -145,12 +190,19 @@ public class MyElevatorController implements ElevatorController {
             return;
         }
         time += deltaTime;
-        if (currentRequests.size() > 0 && game.isElevatorIdle(0)) {
-            System.out.println("moving to " + goToClosest(0, false) + " " + time);
+        if (!game.hasGameHadFirstUpdate()) {
+            AutonomousElevator one = new AutonomousElevator(0, 0, game.getFloorCount() / 2);
+            AutonomousElevator two = new AutonomousElevator(1, (game.getFloorCount() / 2) + 1,
+                    game.getFloorCount() - 1);
+            elevators.add(one);
+            elevators.add(two);
+            one.initalize();
+            two.initalize();
         }
-
-        if (currentRequests.size() > 0 && game.isElevatorIdle(1)) {
-            System.out.println("moving to " + goToClosest(1, false) + " " + time);
-        } // for intiialization
+        for (AutonomousElevator elevator : elevators) {
+            if (game.isElevatorIdle(elevator.selfIdx)) {
+                elevator.onIdle();
+            }
+        }
     }
 }
