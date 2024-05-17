@@ -2,7 +2,9 @@ package logic;
 
 import java.time.format.SignStyle;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import game.ElevatorController;
 import game.Game;
@@ -67,12 +69,10 @@ public class MyElevatorController implements ElevatorController {
     class AutonomousElevator {
 
         private final int selfIdx;
-        private final int minFloor;
-        private final int maxFloor;
+        private int minFloor;
+        private int maxFloor;
 
         private final List<Request> requests = new ArrayList<>();
-
-        private final List<Integer> floorQueue = new ArrayList<>();
 
         private boolean droppingOff = false;
 
@@ -141,6 +141,10 @@ public class MyElevatorController implements ElevatorController {
             return false;
         }
 
+        public int getRequestCount() {
+            return requests.size();
+        }
+
     }
 
     List<AutonomousElevator> elevators = new ArrayList<>();
@@ -191,13 +195,13 @@ public class MyElevatorController implements ElevatorController {
         }
         time += deltaTime;
         if (!game.hasGameHadFirstUpdate()) {
-            AutonomousElevator one = new AutonomousElevator(0, 0, game.getFloorCount() / 2);
-            AutonomousElevator two = new AutonomousElevator(1, (game.getFloorCount() / 2) + 1,
-                    game.getFloorCount() - 1);
-            elevators.add(one);
-            elevators.add(two);
-            one.initalize();
-            two.initalize();
+            int elevatorCount = game.getElevatorCount();
+            int floorCount = game.getFloorCount();
+            for (int i = 0; i < elevatorCount; i++) {
+                AutonomousElevator elevator = new AutonomousElevator(i, (floorCount / elevatorCount) * i,
+                        ((floorCount / elevatorCount) * (i + 1) - 1));
+                elevators.add(elevator);
+            }
         }
         for (AutonomousElevator elevator : elevators) {
             if (game.isElevatorIdle(elevator.selfIdx)) {
