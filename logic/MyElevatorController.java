@@ -155,7 +155,7 @@ public class MyElevatorController implements ElevatorController {
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         if (reqEnable) {
             for (AutonomousElevator elevator : elevators) {
-                if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) {
+                if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) { //imma change this to redistribute it to the least requests TODO
                     elevator.onElevatorCall(floorIdx, dir);
                     return;
                 }
