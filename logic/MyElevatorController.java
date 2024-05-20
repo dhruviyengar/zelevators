@@ -74,8 +74,6 @@ public class MyElevatorController implements ElevatorController {
 
         private final List<Request> requests = new ArrayList<>();
 
-        private boolean droppingOff = false;
-
         public AutonomousElevator(int selfIdx, int minFloor, int maxFloor) {
             this.selfIdx = selfIdx;
             this.minFloor = minFloor;
@@ -114,14 +112,10 @@ public class MyElevatorController implements ElevatorController {
 
         public void onFloorSelect(int floorIdx) {
             gotoFloor(selfIdx, floorIdx);
-            droppingOff = true;
         }
 
         public void onElevatorArrive() {
-            if (droppingOff) {
-                droppingOff = false;
-                evaluatePosition();
-            }
+            
         }
 
         public void onIdle() {
@@ -154,12 +148,18 @@ public class MyElevatorController implements ElevatorController {
     // cleared (reqEnable indicates which).
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         if (reqEnable) {
+            AutonomousElevator min = null;
             for (AutonomousElevator elevator : elevators) {
-                if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) { //imma change this to redistribute it to the least requests TODO
-                    elevator.onElevatorCall(floorIdx, dir);
-                    return;
+                if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) { // imma change this to
+                                                                                      // redistribute it to the least
+                                                                                      // requests TODO
+                    if (min == null || Math.abs(floorIdx - elevator.getElevatorFloor()) < Math
+                            .abs(floorIdx - min.getElevatorFloor())) {
+                        min = elevator;
+                    }
                 }
             }
+            min.onElevatorCall(floorIdx, dir);
         }
     }
 
