@@ -75,6 +75,8 @@ public class MyElevatorController implements ElevatorController {
         private final List<Request> requests = new ArrayList<>();
         private final List<Integer> floorQueue = new ArrayList<>();
 
+        boolean fulfillingRequest = false;
+
         public AutonomousElevator(int selfIdx, int minFloor, int maxFloor) {
             this.selfIdx = selfIdx;
             this.minFloor = minFloor;
@@ -93,6 +95,7 @@ public class MyElevatorController implements ElevatorController {
             if (getElevatorFloor() != request.getFloor())
                 gotoFloor(selfIdx, request.getFloor());
             requests.remove(request);
+            fulfillingRequest = true;
         }
 
         private void evaluatePosition() {
@@ -116,16 +119,40 @@ public class MyElevatorController implements ElevatorController {
 
         public void onFloorSelect(int floorIdx) {
             if (isIdle()) {
+                floorQueue.add(floorIdx);
                 gotoFloor(selfIdx, floorIdx);
+            } else {
+                floorQueue.add(floorIdx);
             }
         }
 
         public void onElevatorArrive() {
-            
+            System.out.println(selfIdx + " " + floorQueue);
+            if (fulfillingRequest) {
+                fulfillingRequest = false;
+            } else {
+                if (floorQueue.size() > 1) {
+                    for (int i = 0; i < floorQueue.size(); i++) {
+                        if (floorQueue.get(i) == getElevatorFloor()) {
+                            floorQueue.remove(i);
+                            break;
+                        }
+                    }
+                    gotoFloor(selfIdx, floorQueue.get(0));
+                } else if (floorQueue.size() == 1){
+                    for (int i = 0; i < floorQueue.size(); i++) {
+                        if (floorQueue.get(i) == getElevatorFloor()) {
+                            floorQueue.remove(i);
+                            break;
+                        }
+                    }
+                    evaluatePosition();
+                }
+            } 
         }
 
         public void onIdle() {
-            evaluatePosition();
+            if (!fulfillingRequest && floorQueue.size() <= 0) evaluatePosition();
         }
 
         public void initalize() {
