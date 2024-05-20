@@ -84,6 +84,10 @@ public class MyElevatorController implements ElevatorController {
             return (int) game.getElevatorFloor(selfIdx);
         }
 
+        private boolean isIdle() {
+            return game.isElevatorIdle(selfIdx);
+        }
+
         private void fulfillRequest(Request request) {
             if (getElevatorFloor() != request.getFloor())
                 gotoFloor(selfIdx, request.getFloor());
@@ -96,8 +100,7 @@ public class MyElevatorController implements ElevatorController {
                 if (closest == null) {
                     closest = request;
                 } else {
-                    if (Math.abs(closest.getFloor() - getElevatorFloor()) > Math
-                            .abs(request.getFloor() - getElevatorFloor())) {
+                    if (request.getTimeStamp() < closest.getTimeStamp()) {
                         closest = request;
                     }
                 }
@@ -111,7 +114,9 @@ public class MyElevatorController implements ElevatorController {
         }
 
         public void onFloorSelect(int floorIdx) {
-            gotoFloor(selfIdx, floorIdx);
+            if (isIdle()) {
+                gotoFloor(selfIdx, floorIdx);
+            }
         }
 
         public void onElevatorArrive() {
