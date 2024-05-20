@@ -73,6 +73,7 @@ public class MyElevatorController implements ElevatorController {
         private int maxFloor;
 
         private final List<Request> requests = new ArrayList<>();
+        private final List<Integer> floorQueue = new ArrayList<>();
 
         public AutonomousElevator(int selfIdx, int minFloor, int maxFloor) {
             this.selfIdx = selfIdx;
