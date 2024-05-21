@@ -91,6 +91,23 @@ public class MyElevatorController implements ElevatorController {
             return game.isElevatorIdle(selfIdx);
         }
 
+        private void removeRequest(int floor) {
+            requests.remove(requests.stream().filter(request -> request.getFloor() == floor)
+                    .findFirst().get());
+        }
+
+        private void removeRequestFromOthers(int floor) {
+            for (AutonomousElevator elevator : elevators) {
+                if (!elevator.equals(this) && elevator.hasRequest(getElevatorFloor())) {
+                    elevator.removeRequest(floor);
+                }
+            }
+        }
+
+        public boolean hasRequest(int floor) {
+            return requests.stream().anyMatch(request -> request.getFloor() == floor);
+        }
+
         private void fulfillRequest(Request request) {
             if (getElevatorFloor() != request.getFloor())
                 gotoFloor(selfIdx, request.getFloor());
@@ -138,21 +155,37 @@ public class MyElevatorController implements ElevatorController {
                             break;
                         }
                     }
-                    gotoFloor(selfIdx, floorQueue.get(0));
-                } else if (floorQueue.size() == 1){
+                    int minFloor = -1;
+                    for (Integer integer : floorQueue) {
+                        if (minFloor == -1
+                                || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor))
+                            ;
+                    }
+                    if (isIdle())
+                        gotoFloor(selfIdx, minFloor);
+                } else if (floorQueue.size() == 1) {
                     for (int i = 0; i < floorQueue.size(); i++) {
                         if (floorQueue.get(i) == getElevatorFloor()) {
                             floorQueue.remove(i);
                             break;
                         }
                     }
-                    evaluatePosition();
+                    if (isIdle())
+                        evaluatePosition();
                 }
-            } 
+            }
+            if (requests.stream().anyMatch(request -> request.getFloor() == getElevatorFloor())) {
+                requests.remove(requests.stream().filter(request -> request.getFloor() == getElevatorFloor())
+                        .findFirst().get());
+            }
         }
 
         public void onIdle() {
-            if (!fulfillingRequest && floorQueue.size() <= 0) evaluatePosition();
+            if (!fulfillingRequest && floorQueue.size() <= 0) {
+                evaluatePosition();
+            } else if (floorQueue.size() > 0) {
+                gotoFloor(selfIdx, floorQueue.get(0));
+            }
         }
 
         public void initalize() {
@@ -180,14 +213,17 @@ public class MyElevatorController implements ElevatorController {
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
+        for (AutonomousElevator elevator : elevators) {
+            if (elevator.hasRequest(floorIdx))
+                return;
+        }
         if (reqEnable) {
             AutonomousElevator min = null;
             for (AutonomousElevator elevator : elevators) {
                 if (floorIdx >= elevator.minFloor && floorIdx <= elevator.maxFloor) { // imma change this to
                                                                                       // redistribute it to the least
                                                                                       // requests TODO
-                    if (min == null || Math.abs(floorIdx - elevator.getElevatorFloor()) < Math
-                            .abs(floorIdx - min.getElevatorFloor())) {
+                    if (min == null || elevator.getRequestCount() < min.getRequestCount()) {
                         min = elevator;
                     }
                 }
@@ -231,8 +267,7 @@ public class MyElevatorController implements ElevatorController {
             int elevatorCount = game.getElevatorCount();
             int floorCount = game.getFloorCount();
             for (int i = 0; i < elevatorCount; i++) {
-                AutonomousElevator elevator = new AutonomousElevator(i, (floorCount / elevatorCount) * i,
-                        ((floorCount / elevatorCount) * (i + 1) - 1));
+                AutonomousElevator elevator = new AutonomousElevator(i, 0, floorCount - 1);
                 elevators.add(elevator);
             }
         }
