@@ -366,7 +366,7 @@ public class Game implements ActionListener {
         milliSecondsLastUpdate = milliSecondsNow;
         
         // Clamp deltaTime (slow down the sim, if needed)...
-        deltaTime = Math.min(deltaTime, 0.1);
+        deltaTime = 0.1; //Math.min(deltaTime, 0.1);
         if (gameStats.timeRemaining == 0) {
             deltaTime = 0;
         }

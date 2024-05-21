@@ -91,19 +91,6 @@ public class MyElevatorController implements ElevatorController {
             return game.isElevatorIdle(selfIdx);
         }
 
-        private void removeRequest(int floor) {
-            requests.remove(requests.stream().filter(request -> request.getFloor() == floor)
-                    .findFirst().get());
-        }
-
-        private void removeRequestFromOthers(int floor) {
-            for (AutonomousElevator elevator : elevators) {
-                if (!elevator.equals(this) && elevator.hasRequest(getElevatorFloor())) {
-                    elevator.removeRequest(floor);
-                }
-            }
-        }
-
         public boolean hasRequest(int floor) {
             return requests.stream().anyMatch(request -> request.getFloor() == floor);
         }
@@ -213,10 +200,7 @@ public class MyElevatorController implements ElevatorController {
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
-        for (AutonomousElevator elevator : elevators) {
-            if (elevator.hasRequest(floorIdx))
-                return;
-        }
+        if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx))) return;
         if (reqEnable) {
             AutonomousElevator min = null;
             for (AutonomousElevator elevator : elevators) {
