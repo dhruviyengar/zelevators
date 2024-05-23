@@ -95,6 +95,22 @@ public class MyElevatorController implements ElevatorController {
             return requests.stream().anyMatch(request -> request.getFloor() == floor);
         }
 
+        public void removeRequest(int floor) {
+            requests.removeIf(request -> request.getFloor() == floor);
+        }
+
+        public void removeRequestFromOthers(int floor) {
+            for (AutonomousElevator elevator : elevators) {
+                if (elevator.hasRequest(floor)) {
+                    elevator.removeRequest(floor);
+                }
+            }
+        }
+
+        public boolean isGoingToFloor(int floor) {
+            return floorQueue.contains(floor);
+        }
+
         private void fulfillRequest(Request request) {
             if (getElevatorFloor() != request.getFloor())
                 gotoFloor(selfIdx, request.getFloor());
@@ -128,10 +144,10 @@ public class MyElevatorController implements ElevatorController {
             } else {
                 floorQueue.add(floorIdx);
             }
+            // removeRequestFromOthers(floorIdx);
         }
 
         public void onElevatorArrive() {
-            System.out.println(selfIdx + " " + floorQueue);
             if (fulfillingRequest) {
                 fulfillingRequest = false;
             } else {
@@ -145,11 +161,14 @@ public class MyElevatorController implements ElevatorController {
                     int minFloor = -1;
                     for (Integer integer : floorQueue) {
                         if (minFloor == -1
-                                || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor))
-                            ;
+                                || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor)) {
+                            minFloor = integer;
+                        }
                     }
-                    if (isIdle())
+                    if (isIdle()) {
                         gotoFloor(selfIdx, minFloor);
+                    }
+
                 } else if (floorQueue.size() == 1) {
                     for (int i = 0; i < floorQueue.size(); i++) {
                         if (floorQueue.get(i) == getElevatorFloor()) {
@@ -161,17 +180,22 @@ public class MyElevatorController implements ElevatorController {
                         evaluatePosition();
                 }
             }
-            if (requests.stream().anyMatch(request -> request.getFloor() == getElevatorFloor())) {
-                requests.remove(requests.stream().filter(request -> request.getFloor() == getElevatorFloor())
-                        .findFirst().get());
-            }
+            requests.removeIf(request -> request.getFloor() == getElevatorFloor());
         }
 
         public void onIdle() {
             if (!fulfillingRequest && floorQueue.size() <= 0) {
                 evaluatePosition();
             } else if (floorQueue.size() > 0) {
-                gotoFloor(selfIdx, floorQueue.get(0));
+                int minFloor = -1;
+                for (Integer integer : floorQueue) {
+                    if (minFloor == -1
+                            || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor)) {
+                        minFloor = integer;
+                    }
+                }
+                if (minFloor != -1)
+                    gotoFloor(selfIdx, minFloor);
             }
         }
 
@@ -200,7 +224,10 @@ public class MyElevatorController implements ElevatorController {
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
-        if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx))) return;
+        if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx)/*
+                                                                                  * || elevator.isGoingToFloor(floorIdx)
+                                                                                  */))
+            return;
         if (reqEnable) {
             AutonomousElevator min = null;
             for (AutonomousElevator elevator : elevators) {
