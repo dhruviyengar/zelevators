@@ -200,7 +200,6 @@ public class MyElevatorController implements ElevatorController {
                         evaluatePosition();
                 }
             }
-            requests.removeIf(request -> request.getFloor() == getElevatorFloor());
         }
 
         public void onIdle() {
