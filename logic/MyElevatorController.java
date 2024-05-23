@@ -95,6 +95,14 @@ public class MyElevatorController implements ElevatorController {
             return requests.stream().anyMatch(request -> request.getFloor() == floor);
         }
 
+        public boolean someoneHasRequest(int floor) {
+            for (AutonomousElevator elevator : elevators) {
+                if (elevator.hasRequest(floor))
+                    return true;
+            }
+            return false;
+        }
+
         public void removeRequest(int floor) {
             requests.removeIf(request -> request.getFloor() == floor);
         }
@@ -144,7 +152,7 @@ public class MyElevatorController implements ElevatorController {
             } else {
                 floorQueue.add(floorIdx);
             }
-            // removeRequestFromOthers(floorIdx);
+            removeRequestFromOthers(floorIdx);
         }
 
         public void onElevatorArrive() {
@@ -158,14 +166,26 @@ public class MyElevatorController implements ElevatorController {
                             break;
                         }
                     }
-                    int minFloor = -1;
+                    List<Integer> floors = new ArrayList<>();
                     for (Integer integer : floorQueue) {
+                        if (someoneHasRequest(integer)) {
+                            if (!floors.contains(integer))
+                                floors.add(integer);
+                        }
+                    }
+                    boolean didFindFloor = floors.size() > 0;
+                    if (floors.size() <= 0)
+                        floors = floorQueue;
+                    int minFloor = -1;
+                    for (Integer integer : floors) {
                         if (minFloor == -1
                                 || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor)) {
                             minFloor = integer;
                         }
                     }
                     if (isIdle()) {
+                        if (didFindFloor)
+                            removeRequestFromOthers(minFloor);
                         gotoFloor(selfIdx, minFloor);
                     }
 
@@ -187,15 +207,27 @@ public class MyElevatorController implements ElevatorController {
             if (!fulfillingRequest && floorQueue.size() <= 0) {
                 evaluatePosition();
             } else if (floorQueue.size() > 0) {
-                int minFloor = -1;
+                List<Integer> floors = new ArrayList<>();
                 for (Integer integer : floorQueue) {
+                    if (someoneHasRequest(integer)) {
+                        if (!floors.contains(integer))
+                            floors.add(integer);
+                    }
+                }
+                boolean didFindFloor = floors.size() > 0;
+                if (floors.size() <= 0)
+                    floors = floorQueue;
+                int minFloor = -1;
+                for (Integer integer : floors) {
                     if (minFloor == -1
                             || Math.abs(getElevatorFloor() - integer) < Math.abs(getElevatorFloor() - minFloor)) {
                         minFloor = integer;
                     }
                 }
                 if (minFloor != -1)
-                    gotoFloor(selfIdx, minFloor);
+                    if (didFindFloor)
+                        removeRequestFromOthers(minFloor);
+                gotoFloor(selfIdx, minFloor);
             }
         }
 
@@ -224,9 +256,8 @@ public class MyElevatorController implements ElevatorController {
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
     public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
-        if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx)/*
-                                                                                  * || elevator.isGoingToFloor(floorIdx)
-                                                                                  */))
+        if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx)
+                || elevator.isGoingToFloor(floorIdx)))
             return;
         if (reqEnable) {
             AutonomousElevator min = null;
