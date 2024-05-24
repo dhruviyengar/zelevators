@@ -254,7 +254,7 @@ public class MyElevatorController implements ElevatorController {
     // Event: "outside-the-elevator" request, requesting an elevator.
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
-    public void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
+    public synchronized void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx)
                 || elevator.isGoingToFloor(floorIdx)))
             return;
@@ -276,7 +276,7 @@ public class MyElevatorController implements ElevatorController {
     // Event: "inside-the-elevator" request, requesting to go to a floor.
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
-    public void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
+    public synchronized void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
         if (reqEnable) {
             for (AutonomousElevator elevator : elevators) {
                 if (elevatorIdx == elevator.selfIdx) {
@@ -288,7 +288,7 @@ public class MyElevatorController implements ElevatorController {
     }
 
     // Event: Elevator has arrived at the floor & doors are open.
-    public void onElevatorArrivedAtFloor(int elevatorIdx, int floorIdx, Direction travelDirection) {
+    public synchronized void onElevatorArrivedAtFloor(int elevatorIdx, int floorIdx, Direction travelDirection) {
         for (AutonomousElevator elevator : elevators) {
             if (elevatorIdx == elevator.selfIdx) {
                 elevator.onElevatorArrive();
@@ -299,7 +299,7 @@ public class MyElevatorController implements ElevatorController {
 
     // Event: Called each frame of the simulation (i.e. called continuously)
 
-    public void onUpdate(double deltaTime) {
+    public synchronized void onUpdate(double deltaTime) {
         if (game == null) {
             return;
         }
