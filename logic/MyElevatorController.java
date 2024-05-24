@@ -30,10 +30,14 @@ public class MyElevatorController implements ElevatorController {
         this.game = game;
     }
 
+    // rrquest class to keep track of outside the elevator requests
     class Request {
 
+        //floor jumbers
         private final int floor;
+        //timestamp of request
         private final long timestamp;
+        //request direction
         private final Direction dir;
 
         public Request(int floor, long timestamp, Direction dir) {
@@ -68,13 +72,19 @@ public class MyElevatorController implements ElevatorController {
 
     class AutonomousElevator {
 
+        //index of elevator
         private final int selfIdx;
+        //minimum floor its covering
         private int minFloor;
+        // max floor its covering
         private int maxFloor;
 
+        // current requests
         private final List<Request> requests = new ArrayList<>();
+        //current floors were going to
         private final List<Integer> floorQueue = new ArrayList<>();
 
+        //keeping track of whether were picking up or dropping off
         boolean fulfillingRequest = false;
 
         public AutonomousElevator(int selfIdx, int minFloor, int maxFloor) {
@@ -91,10 +101,12 @@ public class MyElevatorController implements ElevatorController {
             return game.isElevatorIdle(selfIdx);
         }
 
+        //checking if an wlevator has a request
         public boolean hasRequest(int floor) {
             return requests.stream().anyMatch(request -> request.getFloor() == floor);
         }
 
+        //checking if one of the elevators has a request
         public boolean someoneHasRequest(int floor) {
             for (AutonomousElevator elevator : elevators) {
                 if (elevator.hasRequest(floor))
@@ -103,10 +115,12 @@ public class MyElevatorController implements ElevatorController {
             return false;
         }
 
+        //removimg request from an elevator
         public void removeRequest(int floor) {
             requests.removeIf(request -> request.getFloor() == floor);
         }
 
+        // removing request from all the registered elevators
         public void removeRequestFromOthers(int floor) {
             for (AutonomousElevator elevator : elevators) {
                 if (elevator.hasRequest(floor)) {
@@ -119,6 +133,7 @@ public class MyElevatorController implements ElevatorController {
             return floorQueue.contains(floor);
         }
 
+        //method to handle a request - only run if zombie is not in elevator 
         private void fulfillRequest(Request request) {
             if (getElevatorFloor() != request.getFloor())
                 gotoFloor(selfIdx, request.getFloor());
@@ -126,6 +141,7 @@ public class MyElevatorController implements ElevatorController {
             fulfillingRequest = true;
         }
 
+        //choosing first request to fulfill based on timestamp 
         private void evaluatePosition() {
             Request closest = null;
             for (Request request : requests) {
@@ -141,10 +157,12 @@ public class MyElevatorController implements ElevatorController {
                 fulfillRequest(closest);
         }
 
+        // elevator call event
         public void onElevatorCall(int floorIdx, Direction dir) {
             requests.add(new Request(floorIdx, System.currentTimeMillis(), dir));
         }
 
+        // adding floor to queue - if ready to go then go to floor
         public void onFloorSelect(int floorIdx) {
             if (isIdle()) {
                 floorQueue.add(floorIdx);
@@ -155,6 +173,7 @@ public class MyElevatorController implements ElevatorController {
             removeRequestFromOthers(floorIdx);
         }
 
+        //elevator arrive event choosing what action to take
         public void onElevatorArrive() {
             if (fulfillingRequest) {
                 fulfillingRequest = false;
@@ -202,6 +221,7 @@ public class MyElevatorController implements ElevatorController {
             }
         }
 
+        //idle function - basically wame as elevator arrive
         public void onIdle() {
             if (!fulfillingRequest && floorQueue.size() <= 0) {
                 evaluatePosition();
@@ -230,6 +250,7 @@ public class MyElevatorController implements ElevatorController {
             }
         }
 
+        //need to depcreate this but i couldnt figure out the hesder in VS code
         public void initalize() {
             evaluatePosition();
         }
@@ -249,11 +270,14 @@ public class MyElevatorController implements ElevatorController {
 
     }
 
+    //list of registered elevators
     List<AutonomousElevator> elevators = new ArrayList<>();
 
     // Event: "outside-the-elevator" request, requesting an elevator.
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
+
+    // distributing requests to the elevators, making sure its spread out so one elevator isnt carrying
     public synchronized void onElevatorRequestChanged(int floorIdx, Direction dir, boolean reqEnable) {
         if (elevators.stream().anyMatch(elevator -> elevator.hasRequest(floorIdx)
                 || elevator.isGoingToFloor(floorIdx)))
@@ -276,6 +300,7 @@ public class MyElevatorController implements ElevatorController {
     // Event: "inside-the-elevator" request, requesting to go to a floor.
     // The event will be triggered with the request is created/enabled & when it is
     // cleared (reqEnable indicates which).
+    //handling elevator floor selection and sending the info packet to the AutonomisElevator
     public synchronized void onFloorRequestChanged(int elevatorIdx, int floorIdx, boolean reqEnable) {
         if (reqEnable) {
             for (AutonomousElevator elevator : elevators) {
@@ -288,6 +313,7 @@ public class MyElevatorController implements ElevatorController {
     }
 
     // Event: Elevator has arrived at the floor & doors are open.
+    // feeding event to autonomus elevator
     public synchronized void onElevatorArrivedAtFloor(int elevatorIdx, int floorIdx, Direction travelDirection) {
         for (AutonomousElevator elevator : elevators) {
             if (elevatorIdx == elevator.selfIdx) {
@@ -299,6 +325,7 @@ public class MyElevatorController implements ElevatorController {
 
     // Event: Called each frame of the simulation (i.e. called continuously)
 
+    // feeding onIdle event and registering elevators 
     public synchronized void onUpdate(double deltaTime) {
         if (game == null) {
             return;
